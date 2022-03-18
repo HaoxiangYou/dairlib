@@ -22,6 +22,24 @@ py_library(
     ],
 )
 
+py_library(
+    name = "disturbation_to_cassie_states",
+    srcs = ["disturbation_to_cassie_states.py"],
+    deps = [
+        ":cassie_utils",
+        "//bindings/pydairlib/common",
+        "//bindings/pydairlib/multibody:multibody_py",
+        "@drake//bindings/pydrake",
+        "drake_to_mujoco_converter"
+    ],
+)
+
+py_binary(
+    name = "disturbation_to_cassie_states_test",
+    srcs = ["disturbation_to_cassie_states_test.py"],
+    deps = [":disturbation_to_cassie_states"],
+)
+
 py_binary(
     name = "drake_to_mujoco_test",
     srcs = ["drake_to_mujoco_test.py"],
