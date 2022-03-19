@@ -22,7 +22,7 @@ class DisturbationToCassieStates():
         self.builder = DiagramBuilder()
         self.plant, self.scene_graph = AddMultibodyPlantSceneGraph(self.builder, drake_sim_dt)
         AddCassieMultibody(self.plant, self.scene_graph, True,
-                           "examples/Cassie/urdf/cassie_v2.urdf", False, False)
+                           "examples/Cassie/urdf/cassie_v2_conservative.urdf", False, False)
         self.plant.Finalize()
         self.context = self.plant.CreateDefaultContext()
 
@@ -51,105 +51,91 @@ class DisturbationToCassieStates():
         self.initial_pos = self.initial_states[:self.num_pos]
         self.initial_vel = self.initial_states[-self.num_vel:]
 
-    def disturbation_to_single_position_state(self, state_index, disturbation):
+    def add_disturbation_to_left_foot_point_at_z_direction(self,disturbation):
+        """
+        Add the disturbation to the point where the left foot end up being
+        """
 
-        # Solve the IK for the single leg
+        # Get the Initial position of toe by Forward kinematics
 
-        # Check which leg is to be disturbed
+        self.plant.SetPositions(self.context, self.initial_pos)
 
-        # Check if the other leg is on the ground 
+        world_frame = self.plant.world_frame()
 
-        # Set constraint for disturbed state to equal disturbed value 
+        toe_left_frame = self.plant.GetBodyByName("toe_left").body_frame()
 
-        # If the other leg is not on the ground then we need add constraints that the disturbed leg should touched on ground 
+        toe_left_anchor_coordinates_in_body_frame = np.array([0.04885482, 0.00394248, 0.01484])
 
-        # Otherwise make sure the disturbed leg is above the ground 
+        toe_left_anchor_coordinates_in_world_frame = self.plant.CalcPointsPositions(
+                                                    self.context, toe_left_frame, toe_left_anchor_coordinates_in_body_frame, world_frame)
 
-        # Set the cost to be the quadratic error of each independent joint(motor). The units are all in radians
-        # TODO think of how to combine the spring and other joints' error that may not be units of radians
+        # Add disturbation to the desired position
 
-        # Solve the desired leg
+        disturbed_toe_left_anchor_coordinates_in_world_frame = np.copy(toe_left_anchor_coordinates_in_world_frame)
 
-        # Go back to solve entire system 
-    
-        # First fixed the solved leg with linear equality constrained
+        disturbed_toe_left_anchor_coordinates_in_world_frame[2] += disturbation
 
-        # If the other leg is previous on the ground, give a linear constraint equality constraints that the leg is still on the ground
+        # Set disturbed position as a linear equality constraints
 
-        # Otherwise make sure the other leg is above the ground
+        self.ik_solver.AddPositionConstraint(toe_left_frame, toe_left_anchor_coordinates_in_body_frame, world_frame,
+                                                disturbed_toe_left_anchor_coordinates_in_world_frame, disturbed_toe_left_anchor_coordinates_in_world_frame)
 
-        # Similar to previous solver, where the cost is the difference between the solved states and previous states
+        # Fixed the body and right leg
+
+        configuration_index_need_to_be_fixed = self.get_pos_fixed_index()
+
+        A = np.eye(configuration_index_need_to_be_fixed.shape[0])
+
+        b = self.initial_pos[configuration_index_need_to_be_fixed]
+
+        delta = np.ones(configuration_index_need_to_be_fixed.shape[0]) * 1e-2
+
+        self.ik_solver.prog().AddLinearConstraint(A, b - delta, b + delta, self.ik_solver.q()[configuration_index_need_to_be_fixed])
+
+        #TODO Add Constraints for rods in left leg
         
-        value_after_disturbation = self.initial_states[state_index] + disturbation
+        # Add the Cost for IK, where the cost is defined as the change of disturbed states and new states.
+        # The only things have degree of freedom are joints in left leg which are all units in radians
 
-        self.ik_solver.prog().AddLinearEqualityConstraint(self.ik_solver.q()[state_index], value_after_disturbation)
+        Q = np.eye(self.num_pos)
 
-        Q = self.get_Q(which_leg="left")
-
-        b = -Q @ self.initial_pos
+        b = - Q @ self.initial_pos
 
         c = self.initial_pos.T @ Q @ self.initial_pos / 2
 
-        self.ik_solver.prog().AddQuadraticCost(Q, b, c , self.ik_solver.q())
+        self.ik_solver.prog().AddQuadraticCost(Q, b, self.ik_solver.q()) 
 
-        snopt_solver = SnoptSolver()
+        # Solve IK
 
-        result = snopt_solver.Solve(self.ik_solver.prog())
+        self.ik_solver.prog().SetInitialGuess(self.ik_solver.q(), self.initial_pos)
 
-        q_pos = np.copy(self.initial_pos)
+        snap_solver = SnoptSolver()
 
-        left_leg_index = self.get_index_for_certain_leg(which_leg="left")
+        result = snap_solver.Solve(self.ik_solver.prog())
+        is_success = result.is_success()
 
-        q_pos[left_leg_index] = result.GetSolution()[left_leg_index]
+        q_pos = result.GetSolution()
+        q_vel = self.initial_vel
 
+        # Check the feasible of diturbed states
         import pdb; pdb.set_trace()
 
-        q_vel = np.copy(self.initial_vel)
-
-        return np.hstack((q_pos, q_vel))
+        return np.hstack((q_pos, q_vel)), is_success
 
     def visualize_left_leg(self, states_in_drake):
 
         self.drake_to_mujoco_converter.visualize_entire_leg(states_in_drake)
 
-    def get_Q(self, which_leg = "left"):
+    def get_pos_fixed_index(self,):
         """
-        Return the Quadratic Cost Matrix for a specified leg
-        """
-        
-        scalar_for_angle = 1
-
-        Q = np.zeros((self.num_pos, self.num_pos))
-        
-        if which_leg == "left":
-            Q[self.pos_map["hip_roll_left"], self.pos_map["hip_roll_left"]] = scalar_for_angle
-            Q[self.pos_map["hip_pitch_left"], self.pos_map["hip_pitch_left"]] = scalar_for_angle
-            Q[self.pos_map["hip_yaw_left"], self.pos_map["hip_yaw_left"]] = scalar_for_angle
-            Q[self.pos_map["knee_joint_left"], self.pos_map["knee_joint_left"]] = scalar_for_angle
-            Q[self.pos_map["ankle_joint_left"], self.pos_map["ankle_joint_left"]] = scalar_for_angle
-
-        else:
-            Q[self.pos_map["hip_roll_right"], self.pos_map["hipp_roll_right"]] = scalar_for_angle
-            Q[self.pos_map["hip_pitch_right"], self.pos_map["hip_pitch_right"]] = scalar_for_angle 
-            Q[self.pos_map["hip_yaw_right"], self.pos_map["hip_yaw_right"]] = scalar_for_angle
-            Q[self.pos_map["knee_joint_right"], self.pos_map["knee_joint_right"]] = scalar_for_angle
-            Q[self.pos_map["ankle_joint_right"], self.pos_map["ankle_joint_right"]] = scalar_for_angle
-
-        return Q
-
-    def get_index_for_certain_leg(self, which_leg="left"):
-        """
-        Get index corresponding for a single leg 
+        Get index for parameters need to be fixed
         """
         index = []
         
-        if which_leg == "left":
-            for key in self.pos_map:
-                if "left" in key:
-                    index.append(self.pos_map[key])
-        else :
-            for key in self.pos_map:
-                if "right" in key:
-                    index.append(self.pos_map[key])
+        for key in self.pos_map:
+            if not ("left" in key):
+                # Base may also be affected
+
+                index.append(self.pos_map[key])
 
         return np.array(index, dtype=int)

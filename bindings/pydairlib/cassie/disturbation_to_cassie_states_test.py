@@ -64,7 +64,7 @@ def main():
 
     disturbation_generator.get_initial_states(initial_state_in_drake)
 
-    disturbed_states = disturbation_generator.disturbation_to_single_position_state(11, radians(1))
+    disturbed_states, is_success = disturbation_generator.add_disturbation_to_left_foot_point_at_z_direction(0)
 
     disturbation_generator.visualize_left_leg(initial_state_in_drake)
 
