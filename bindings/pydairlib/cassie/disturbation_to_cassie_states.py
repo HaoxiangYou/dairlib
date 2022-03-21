@@ -22,7 +22,7 @@ class DisturbationToCassieStates():
         self.builder = DiagramBuilder()
         self.plant, self.scene_graph = AddMultibodyPlantSceneGraph(self.builder, drake_sim_dt)
         AddCassieMultibody(self.plant, self.scene_graph, True,
-                           "examples/Cassie/urdf/cassie_v2_conservative.urdf", False, False)
+                           "examples/Cassie/urdf/cassie_v2.urdf", False, False)
         self.plant.Finalize()
         self.context = self.plant.CreateDefaultContext()
 
@@ -43,7 +43,7 @@ class DisturbationToCassieStates():
         self.initial_states = None
 
         # Initialize ik solver
-        self.ik_solver = InverseKinematics(self.plant, self.context, with_joint_limits=False)
+        self.ik_solver = InverseKinematics(self.plant, self.context, with_joint_limits=True)
 
     def get_initial_states(self, states_in_drake):
 
@@ -128,14 +128,28 @@ class DisturbationToCassieStates():
         q_pos = result.GetSolution()
         q_vel = self.initial_vel
 
-        # Check the feasible of diturbed states
-        import pdb; pdb.set_trace()
+        # Check the feasible of disturbed states
+        toe_left_most_front_point_coordinates_in_body_frame = np.array([0.1, 0.00394248, 0])
+        toe_left_most_back_point_coordinates_in_body_frame = np.array([0, 0.00394248, 0])
+
+        toe_left_most_front_point_coordinates_in_world_frame = self.plant.CalcPointsPositions(
+                                                    self.context, toe_left_frame, toe_left_most_front_point_coordinates_in_body_frame, world_frame)
+        toe_left_most_back_point_coordinates_in_world_frame = self.plant.CalcPointsPositions(
+                                                    self.context, toe_left_frame, toe_left_most_back_point_coordinates_in_body_frame, world_frame)
+
+        if toe_left_most_front_point_coordinates_in_world_frame[2] < 0 or toe_left_most_back_point_coordinates_in_world_frame[2] < 0:
+            is_success = False
 
         return np.hstack((q_pos, q_vel)), is_success
 
     def visualize_left_leg(self, states_in_drake):
 
         self.drake_to_mujoco_converter.visualize_entire_leg(states_in_drake)
+
+    def visualize_cassie(self, states_in_drake):
+
+        visualizer = MultiposeVisualizer('examples/Cassie/urdf/cassie_v2.urdf', 1, '')
+        visualizer.DrawPoses(states_in_drake)
 
     def get_pos_fixed_index(self,):
         """
