@@ -55,7 +55,7 @@ def main():
           0.9238795325112867,
           1.0])
 
-    qpos_init_drake = np.hstack((qstate_gt[1:5], np.array([0, 0, qstate_gt[0]]), qstate_gt[5:9], qstate_gt[34], qstate_gt[35], 0.0, qstate_gt[9], qstate_gt[11:15], qstate_gt[37:39], 0.0, qstate_gt[14]))
+    qpos_init_drake = np.hstack((qstate_gt[1:5], np.array([0, 0, qstate_gt[0]]), qstate_gt[5:9], qstate_gt[34], qstate_gt[35], 0.0, qstate_gt[9], qstate_gt[10:14], qstate_gt[37:39], 0.0, qstate_gt[14]))
     qvel_init_drake = np.hstack((qstate_gt[18:21], qstate_gt[15:18], qstate_gt[21:25], qstate_gt[40:42], 0.0, qstate_gt[25], qstate_gt[26:30], qstate_gt[44:46], 0.0, qstate_gt[30]))
 
     initial_state_in_drake = np.hstack((qpos_init_drake, qvel_init_drake))
@@ -64,7 +64,7 @@ def main():
 
     disturbation_generator.get_initial_states(initial_state_in_drake)
 
-    disturbed_states, is_success = disturbation_generator.add_disturbation_to_left_foot_point_at_z_direction(0)
+    disturbed_states, is_success = disturbation_generator.add_disturbation_to_left_foot_point_at_z_direction(0.1)
 
     disturbation_generator.visualize_left_leg(initial_state_in_drake)
 
@@ -73,6 +73,12 @@ def main():
     disturbation_generator.visualize_left_leg(disturbed_states)
 
     import pdb; pdb.set_trace()
+
+    disturbation_generator.visualize_cassie(initial_state_in_drake)
+
+    import pdb; pdb.set_trace()
+
+    disturbation_generator.visualize_cassie(disturbed_states)
 
 if __name__ == "__main__":
     main()
