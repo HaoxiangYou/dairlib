@@ -43,7 +43,7 @@ class DisturbationToCassieStates():
         self.initial_states = None
 
         # Initialize ik solver
-        self.ik_solver = InverseKinematics(self.plant, self.context, with_joint_limits=True)
+        self.ik_solver = InverseKinematics(self.plant, self.context, with_joint_limits=False)
 
     def get_initial_states(self, states_in_drake):
 
@@ -92,7 +92,18 @@ class DisturbationToCassieStates():
 
         self.ik_solver.prog().AddLinearConstraint(A, b - delta, b + delta, self.ik_solver.q()[configuration_index_need_to_be_fixed])
 
-        #TODO Add Constraints for rods in left leg
+        #Add Constraints for rods in left leg
+
+        left_thigh_rod_point_in_body_frame, left_thigh_frame = LeftRodOnThigh(self.plant)
+        left_heel_rod_point_in_body_frame, left_heel_frame = LeftRodOnHeel(self.plant)
+        
+        rod_length = 0.5
+
+        delta = 1e-2
+
+        self.ik_solver.AddPointToPointDistanceConstraint(left_thigh_frame, left_thigh_rod_point_in_body_frame,
+                                                        left_heel_frame, left_heel_rod_point_in_body_frame,
+                                                        rod_length - delta, rod_length + delta)
         
         # Add the Cost for IK, where the cost is defined as the change of disturbed states and new states.
         # The only things have degree of freedom are joints in left leg which are all units in radians
@@ -132,8 +143,25 @@ class DisturbationToCassieStates():
         """
         index = []
         
-        for key in self.pos_map:
-            if not ("left" in key):
+        key_lists = [
+                    "base_qw",
+                    "base_qx",
+                    "base_qy",
+                    "base_qz",
+                    "base_x",
+                    "base_y",
+                    "base_z",
+                    "hip_roll_right", 
+                    "hip_pitch_right", 
+                    "hip_yaw_right",
+                    "knee_right",
+                    "knee_joint_right",
+                    "ankle_joint_right",
+                    "ankle_spring_joint_right",
+                    "toe_right"
+                    ]
+
+        for key in key_lists:
                 # Base may also be affected
 
                 index.append(self.pos_map[key])
