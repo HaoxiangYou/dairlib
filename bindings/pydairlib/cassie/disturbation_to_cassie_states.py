@@ -51,7 +51,7 @@ class DisturbationToCassieStates():
         self.initial_pos = self.initial_states[:self.num_pos]
         self.initial_vel = self.initial_states[-self.num_vel:]
 
-    def add_disturbation_to_left_foot_point_at_z_direction(self,disturbation):
+    def add_disturbation_to_left_foot_point(self, disturbation):
         """
         Add the disturbation to the point where the left foot end up being
         """
@@ -69,11 +69,22 @@ class DisturbationToCassieStates():
         toe_left_anchor_coordinates_in_world_frame = self.plant.CalcPointsPositions(
                                                     self.context, toe_left_frame, toe_left_anchor_coordinates_in_body_frame, world_frame)
 
+
+        # Get the orientation of cassie in quat, scalar last
+        base_quat = self.initial_states[[1,2,3,0]]
+
+        orientation = R.from_quat(base_quat)
+
+        yaw, roll, pitch = orientation.as_euler("ZXY")
+
+        # Get the disturbation in the world frame assuming previous disturbation is in "body" frame 
+        disturbation_in_world_frame = R.from_euler("ZXY", [yaw, 0, 0]).as_matrix() @ disturbation
+
         # Add disturbation to the desired position
 
         disturbed_toe_left_anchor_coordinates_in_world_frame = np.copy(toe_left_anchor_coordinates_in_world_frame)
 
-        disturbed_toe_left_anchor_coordinates_in_world_frame[2] += disturbation
+        disturbed_toe_left_anchor_coordinates_in_world_frame += disturbation_in_world_frame[:,None]
 
         # Set disturbed position as a linear equality constraints
 
