@@ -107,6 +107,13 @@ class DrakeToMujocoConverter():
         v_full = v_missing + v_copy
         return q_full, v_full
 
+    def convert_rl_observer_to_drake(self, x):
+        drake_q = self.map_q_rl_obeserver_to_drake @ x
+        drake_v = self.map_v_rl_obeserver_to_drake @ x
+
+        return np.hstack((drake_q,drake_v))
+
+
     def visualize_entire_leg(self, x):
         self.plant.SetPositionsAndVelocities(self.context, x)
         q_missing, _ = self.solve_IK(x)
@@ -321,3 +328,53 @@ class DrakeToMujocoConverter():
         self.map_v_drake_to_mujoco[27, self.vel_map["ankle_joint_rightdot"]] = 1
         self.map_v_drake_to_mujoco[28, self.vel_map["ankle_spring_joint_rightdot"]] = 1
         self.map_v_drake_to_mujoco[31, self.vel_map["toe_rightdot"]] = 1
+
+        self.map_q_rl_obeserver_to_drake = np.zeros((23,49))
+        self.map_v_rl_obeserver_to_drake = np.zeros((22,49))
+
+        # base_qw
+        self.map_q_rl_obeserver_to_drake[0, 1] = 1
+        # base qx
+        self.map_q_rl_obeserver_to_drake[1, 2] = 1
+        # base qy
+        self.map_q_rl_obeserver_to_drake[2, 3] = 1
+        # base qz
+        self.map_q_rl_obeserver_to_drake[3, 4] = 1
+        # base_x 
+        pass
+        # base_y
+        pass
+        # base_z
+        self.map_q_rl_obeserver_to_drake[6, 0] = 1
+        # hip roll left
+        self.map_q_rl_obeserver_to_drake[7, 5] = 1
+        # hip yaw left
+        self.map_q_rl_obeserver_to_drake[8, 6] = 1
+        # hip pitch left
+        self.map_q_rl_obeserver_to_drake[9, 7] = 1
+        # knee left 
+        self.map_q_rl_obeserver_to_drake[10, 8] = 1
+        # knee spring left, TODO not sure, osu's framework name this joint as shin left 
+        self.map_q_rl_obeserver_to_drake[11, 34] = 1
+        # ankle left, TODO not sure, osu's framework seems use under actuated joint tarsus left to represent this angle
+        self.map_q_rl_obeserver_to_drake[12, 35] = 1
+        # ankle_spring_joint_left, TODO not sure, osu's framework seems do not contain any infomation about this spring joint
+        pass
+        # toe left, TODO not sure, osu's framework seems both use foot motor and the under actuated joint foot to represent this 
+        self.map_q_rl_obeserver_to_drake[14, 9] = 1
+        # hip roll right 
+        self.map_q_rl_obeserver_to_drake[15, 10] = 1
+        # hip yaw right
+        self.map_q_rl_obeserver_to_drake[16, 11] = 1
+        # hip pitch right
+        self.map_q_rl_obeserver_to_drake[17, 12] = 1
+        # knee right
+        self.map_q_rl_obeserver_to_drake[18, 13] = 1
+        # knee spring right, TODO not sure osu's framework name this joint as shin right
+        self.map_q_rl_obeserver_to_drake[19, 37] = 1
+        # ankle right, TODO not sure, osu's framework seems under actuated joint tarsus right to represent this angle
+        self.map_q_rl_obeserver_to_drake[20, 38] = 1
+        # angkle spring right, TODO osu's framework seems do not contain any infomation about this spring joint
+        pass
+        # toe right, TODO not sure, osu's framework seems both use foot motor and the under actuated joint foot to represent this 
+        self.map_q_rl_obeserver_to_drake[22, 14] = 1

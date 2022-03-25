@@ -62,9 +62,13 @@ def main():
 
     disturbation_generator = DisturbationToCassieStates()
 
+    disturbation_generator.visualize_cassie(initial_state_in_drake)
+
+    initial_state_in_drake = disturbation_generator.drake_to_mujoco_converter.convert_rl_observer_to_drake(qstate_gt)
+
     disturbation_generator.get_initial_states(initial_state_in_drake)
 
-    disturbed_states, is_success = disturbation_generator.add_disturbation_to_left_foot_point(np.array([0,0.2,0]))
+    disturbed_states, is_success = disturbation_generator.add_disturbation_to_left_foot_point(np.array([0,0,0.1]))
 
     disturbation_generator.visualize_left_leg(initial_state_in_drake)
 
